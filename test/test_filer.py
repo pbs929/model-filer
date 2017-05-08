@@ -16,6 +16,9 @@ os.makedirs(remote_dir)
 try:
     # Test custructor... #####################################################
 
+    # this should work fine...
+    fl = Filer(local_dir, remote_dir)
+
     # bad remote option should raise
     with raises(ValueError):
         Filer(local_dir, remote_dir, remote_type='foo')
@@ -26,80 +29,114 @@ try:
     with raises(FileNotFoundError):
         Filer(local_dir, 'badremotedir')
 
-    # create real object now for test...
-    fl = Filer(local_dir, remote_dir)
-
     # Test object dump #######################################################
     # (starting from blank local and remote)
 
-    # Add an object to registry
-    dummy_object = "hello!"
-    fl.dump(dummy_object, 'dummy_object')
-    # should now be in local but not remote.
-    fl.dump(dummy_object, 'dummy_obj_2', push=True)
-    # should be in local and remote
-
-    # Test overwriting... starting with 1 file local and other remote
-    with raises(ValueError):
-        fl.dump(dummy_object, 'dummy_object')
-    fl.dump(dummy_object, 'dummy_object', overwrite=True)
-    # should reset the timestamp
-    fl.dump(dummy_object, 'dummy_obj_2', overwrite=True)
-    # should reset the timestamp and change the file to "local" since push wasn't called
-    fl.dump(dummy_object, 'dummy_obj_2', overwrite=True, push=True)
-    # should reset the timestamp, change to 'remote', and create a different pushed version of the file.
-
-    # # make a new filer and it should read the existing registry
     fl = Filer(local_dir, remote_dir)
 
+    # Add an object to registry
+    dummy_object = "hello!"
+    fl.dump(dummy_object, 'dummy1')
+    # dummy1 should now be in local but not remote (local state)
+    fl.dump(dummy_object, 'dummy2', push=True)
+    # dummy2 should be in local and remote (synced state)
+
+    # (make a new filer and it should read the existing registry)
+    fl = Filer(local_dir, remote_dir)
+
+    # Test overwriting...
+    # Overwriting file in local state...
+    with raises(ValueError):
+        fl.dump(dummy_object, 'dummy1')  # cannot write without overwrite flag
+    fl.dump(dummy_object, 'dummy1', overwrite=True)
+    # should have replaced the local file (check for new timestamp)
+    fl.dump(dummy_object, 'dummy1', overwrite=True, push=True)
+    # should have overwritten and pushed
+    # Now overwriting file in synced state...
+    with raises(ValueError):
+        fl.dump(dummy_object, 'dummy1', overwrite=True)  # cannot overwrite something that is synced
 
     # Test push/pull #########################################################
+    # bad object names should raise
     with raises(ValueError):
         fl.push('badobjectname')
     with raises(ValueError):
         fl.pull('badobjectname')
 
-    fl.dump(dummy_object, 'dummy_object', overwrite=True)
-    # should be local at this point...
-    fl.push('dummy_object')
-    # should have status "remote"
+    # set up a local file...
+    fl.remove('dummy1', remove_remote=True)
+    fl.dump(dummy_object, 'dummy1', overwrite=True)
+    # should be local at this point
+    # test push/pull in the local scenario...
     with raises(ValueError):
-        fl.push('dummy_object')
-    fl.pull('dummy_object') # won't do anything
-    os.remove(os.path.join(local_dir, 'dummy_object.flr'))
-    fl.pull('dummy_object')
-    assert os.path.isfile(os.path.join(local_dir, 'dummy_object.flr'))
+        fl.pull('dummy1')
+    fl.push('dummy1')
+    # should now have status "synced"
+    # testing push/pull in the synced scenario...
+    with raises(ValueError):
+        fl.push('dummy1')  # can't push when already synced
+    fl.pull('dummy1')  # won't do anything
+    # now remove local and pull to replace...
+    os.remove(os.path.join(local_dir, 'dummy1.pkl'))
+    fl.pull('dummy1')
+    # recovered
+    assert os.path.isfile(os.path.join(local_dir, 'dummy1.pkl'))
 
-    fl.dump(dummy_object, 'dummy_object', overwrite=True)
-    # should reset so the file is local at this point...
-    with raises(ValueError):
-        fl.pull('dummy_object')
-    # example of missing locals after git clone...
-    os.remove(os.path.join(local_dir, 'dummy_object.flr'))
+    # test case of missing locals after git clone...
+    # reset the file to local status...
+    fl.remove('dummy1', remove_remote=True)
+    fl.dump(dummy_object, 'dummy1', overwrite=True)
+    # should be local at this point
+    os.remove(os.path.join(local_dir, 'dummy1.pkl'))
     with raises(FileNotFoundError):
-        fl.push('dummy_object')  # may want to catch this error and provide friendlier error message
+        fl.push('dummy1')  # may want to catch this error and provide friendlier error message
 
-    fl.dump(dummy_object, 'dummy_object', overwrite=True)
-    fl.dump(dummy_object, 'dummy_obj_2', overwrite=True)
+    # test push_all/pull_all
+    # set up two local files...
+    fl.dump(dummy_object, 'dummy1', overwrite=True)
+    fl.remove('dummy2', remove_remote=True)
+    fl.dump(dummy_object, 'dummy2', overwrite=True)
     # both local now
     fl.push_all()
-    # both remote now
-    os.remove(os.path.join(local_dir, 'dummy_object.flr'))
-    os.remove(os.path.join(local_dir, 'dummy_obj_2.flr'))
+    # both should by synced now
+    os.remove(os.path.join(local_dir, 'dummy1.pkl'))
+    os.remove(os.path.join(local_dir, 'dummy2.pkl'))
     fl.pull_all()
-    assert os.path.isfile(os.path.join(local_dir, 'dummy_object.flr'))
-    assert os.path.isfile(os.path.join(local_dir, 'dummy_obj_2.flr'))
+    # both recovered
+    assert os.path.isfile(os.path.join(local_dir, 'dummy1.pkl'))
+    assert os.path.isfile(os.path.join(local_dir, 'dummy2.pkl'))
 
-    # Test object load #######################################################
+    # Test object load ################################################
 
-    fl.dump(dummy_object, 'dummy_object', overwrite=True, push=True)
+    # set up synced state
+    fl.remove('dummy1', remove_remote=True)
+    fl.dump(dummy_object, 'dummy1', push=True)
     # should be synced now
-    assert fl.load('dummy_object') == dummy_object
-    os.remove(os.path.join(local_dir, 'dummy_object.flr'))
-    assert fl.load('dummy_object') == dummy_object
-    assert os.path.isfile(os.path.join(local_dir, 'dummy_object.flr'))
+    assert fl.load('dummy1') == dummy_object
+    os.remove(os.path.join(local_dir, 'dummy1.pkl'))
+    assert fl.load('dummy1') == dummy_object
+    assert os.path.isfile(os.path.join(local_dir, 'dummy1.pkl'))
 
+    # Test removal ####################################################
+    # set up synced state
+    fl.remove('dummy1', remove_remote=True)
+    fl.dump(dummy_object, 'dummy1', push=True)
+    # now remove...
+    fl.remove('dummy1')
+    # *should* leave an orphaned file in the remote
+    # add back in synced state...
+    fl.dump(dummy_object, 'dummy1', push=True)
+    fl.remove('dummy1', remove_remote=True)
+    # should have removed from remote
+
+    # set up one local, one remote
+    fl.dump(dummy_object, 'dummy1', overwrite=True, push=False)
+    fl.remove('dummy2', remove_remote=True)
+    fl.dump(dummy_object, 'dummy2', push=True)
+    fl.remove_locals()
+    # should have removed local but not remote
     fl.show_files()
+    # At the end of this there should still be an orphaned dummy1 that is not in the registry.
 
 except:
     # tear down

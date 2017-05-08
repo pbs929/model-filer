@@ -20,3 +20,6 @@ class DriveConnection():
 
     def download(self, local_filename, remote_address):
         shutil.copyfile(remote_address, local_filename)
+
+    def delete(self, remote_address):
+        os.remove(remote_address)

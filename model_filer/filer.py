@@ -19,7 +19,7 @@ import dill
 import os
 from datetime import datetime
 
-FILE_EXTENSION = '.flr'
+FILE_EXTENSION = '.pkl'
 
 
 class Filer():
@@ -74,9 +74,14 @@ class Filer():
             an error will be raised if a file exists with the name.
         """
         local_file = self._get_local_filename(name)
-        if self.registry.find_by_name(name):
+        # Handle overwriting
+        registry_entry = self.registry.find_by_name(name)
+        if registry_entry:
             if not overwrite:
                 raise ValueError("Cannot write to name '{}': file already exists in registry".format(name))
+            if registry_entry.status == 'synced':
+                raise ValueError("Cannot overwrite file '{}' because it has already been pushed. ".format(name) +
+                                 "To force overwrite, first remove existing registry entry and then retry.")
             if os.path.isfile(local_file):
                 os.remove(local_file)
             self.registry.remove_entry(name)
@@ -149,21 +154,28 @@ class Filer():
 
     def pull_all(self):
         """
-        Pull all available files from the remote
+        Pull all available files from the remote.
         """
         for entry in self.registry.get_all_entries():
             local_file = self._get_local_filename(entry.name)
             if entry.status == 'synced' and not os.path.isfile(local_file):
                 self.pull(entry.name)
 
-    def remove(self, name):
+    def remove(self, name, remove_remote=False):
         """
-        remove local copy and from the registry (remote will remain in case
-        it lives on in git history of the registry...)
+        Remove local copy and remove from the registry.
+
+        By default, remote will not be removed in case
+        it lives on in git history of the registry...
         """
-        pass
+        entry = self.registry.remove_entry(name)
+        if remove_remote and (entry.status == 'synced'):
+            self.remote.delete(entry.address)
 
     def remove_locals(self):
         """
         Useful for cleaning up before git checking
         """
+        for entry in self.registry.get_all_entries():
+            if entry.status == 'local':
+                self.remove(entry.name)
