@@ -1,5 +1,6 @@
-from .remotes import DriveConnection
+from .remotes import DriveRemote
 from .registry import Registry
+
 import dill
 import os
 from datetime import datetime
@@ -9,11 +10,19 @@ FILE_EXTENSION = '.pkl'
 
 class Filer():
     """
-    local_path - path to a folder in the local file system where files will be
-        stored
-    """
+    Main API object for the project.
 
-    def __init__(self, local_path, remote_connection_path, remote_type='drive'):
+    Parameters
+    ----------
+    local_path : string
+        Path to a folder in the local file system where `.pkl` files will be
+        stored
+    remote_connection : string
+        String specifying how to connect to the remote (varies by remote type)
+    remote_type : 'drive' or 's3'
+        String specifying what type of remote connection to use
+    """
+    def __init__(self, local_path, remote_connection, remote_type='drive'):
         # Validate local path
         if not os.path.isdir(local_path):
             raise FileNotFoundError("Local path '{}' is not a valid directory".format(local_path))
@@ -21,10 +30,10 @@ class Filer():
 
         # Set up remote connection
         if remote_type == 'drive':
-            self.remote = DriveConnection(remote_connection_path)
+            self.remote = DriveRemote(remote_connection)
             registry_filename = '.drive_registry'
         elif remote_type == 's3':
-            self.remote = S3Connection(remote_connection_path)
+            self.remote = S3Connection(remote_connection)
             registry_filename = '.s3_registry'
         else:
             raise ValueError("Unsupported remote type: {}".format(remote_type))

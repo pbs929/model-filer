@@ -1,12 +1,12 @@
 """
-A connection is an object capable writing and reading from a remote location.
+A remote is an object capable writing and reading from a remote location.
 Each should have an identical API.
 """
 import os
 import shutil
 from uuid import uuid4
 
-class DriveConnection():
+class DriveRemote():
     def __init__(self, path):
         if not os.path.isdir(path):
             raise FileNotFoundError("Local path '{}' is not a valid directory".format(path))
