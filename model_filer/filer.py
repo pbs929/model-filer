@@ -86,18 +86,14 @@ class Filer():
             self.push(name)
         # (what happens if this gets interrupted?)
 
-    def load(self, name, pull=True):
+    def load(self, name):
         """
         Load a pickled object from the registry.
 
         Parameters
         ----------
-        name: string
+        name : string
             The name of the stored object.
-        pull : boolean (default True)
-            If True, the file will be pulled from the remote if it does not
-            exist locally. Otherwise and error will be thrwon if it does not
-            exist locally.
         """
         registry_entry = self.registry.find_by_name(name)
         if not registry_entry:
@@ -168,7 +164,7 @@ class Filer():
 
     def remove_locals(self):
         """
-        Useful for cleaning up before git checking
+        Useful for cleaning up before git checkin
         """
         for entry in self.registry.get_all_entries():
             if entry.status == 'local':
