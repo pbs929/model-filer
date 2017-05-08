@@ -113,9 +113,19 @@ try:
     fl.dump(dummy_object, 'dummy1', push=True)
     # should be synced now
     assert fl.load('dummy1') == dummy_object
+    # automatically pull file to local if not there
     os.remove(os.path.join(local_dir, 'dummy1.pkl'))
     assert fl.load('dummy1') == dummy_object
     assert os.path.isfile(os.path.join(local_dir, 'dummy1.pkl'))
+
+    # set up local state
+    fl.remove('dummy1', remove_remote=True)
+    fl.dump(dummy_object, 'dummy1', push=False)
+    assert fl.load('dummy1') == dummy_object
+    # raise on load if file does not exist
+    os.remove(os.path.join(local_dir, 'dummy1.pkl'))
+    with raises(FileNotFoundError):
+        fl.load('dummy1')
 
     # Test removal ####################################################
     # set up synced state
