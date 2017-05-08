@@ -1,18 +1,3 @@
-"""
-the model_filer should get initialized with a directory where it is looking for things
-and with a backend method - are things going to S3?  what is the connection point, etc.?
-should have methods for listing the available files and whether they are remote, local, or synced.
-method to list mapping of filenames to remote addresses
-method to sync all files or one by name
-
-We don't ever delete from the remote; each file there will potentially
-correspond to a file registered somewhere in version control.
-The best thing would be to sync at the moment that the registry file
-is _checked in_.
-
-file can be 'local' or 'synced'
-should have local/remote addresses, timestamp
-"""
 from .remotes import DriveConnection
 from .registry import Registry
 import dill
