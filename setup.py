@@ -7,6 +7,7 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        "dill"
+        "dill",
+        "boto3"
         ],
     )

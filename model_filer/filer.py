@@ -1,4 +1,4 @@
-from .remotes import DriveRemote
+from .remotes import DriveRemote, S3Remote
 from .registry import Registry
 
 import dill
@@ -22,7 +22,7 @@ class Filer():
     remote_type : 'drive' or 's3'
         String specifying what type of remote connection to use
     """
-    def __init__(self, local_path, remote_connection, remote_type='drive'):
+    def __init__(self, local_path, remote_connection=None, remote_type='drive'):
         # Validate local path
         if not os.path.isdir(local_path):
             raise FileNotFoundError("Local path '{}' is not a valid directory".format(local_path))
@@ -33,7 +33,7 @@ class Filer():
             self.remote = DriveRemote(remote_connection)
             registry_filename = '.drive_registry'
         elif remote_type == 's3':
-            self.remote = S3Connection(remote_connection)
+            self.remote = S3Remote(remote_connection)
             registry_filename = '.s3_registry'
         else:
             raise ValueError("Unsupported remote type: {}".format(remote_type))
